@@ -7,7 +7,12 @@ from pathlib import Path
 
 PLAYLIST_URL = "https://iptv-org.github.io/iptv/countries/tr.m3u"
 SOURCES = [
-    ("iptv-org Turkey", "https://iptv-org.github.io/epg/guides/tr.xml.gz"),
+    ("EPGShare TR1", "https://epgshare01.online/epgshare01/epg_ripper_TR1.xml.gz"),
+    ("EPGShare TR3", "https://epgshare01.online/epgshare01/epg_ripper_TR3.xml.gz"),
+    ("Open-EPG Turkey1", "https://www.open-epg.com/files/turkey1.xml.gz"),
+    ("Open-EPG Turkey2", "https://www.open-epg.com/files/turkey2.xml.gz"),
+    ("Open-EPG Turkey3", "https://www.open-epg.com/files/turkey3.xml.gz"),
+    ("Open-EPG Turkey4", "https://www.open-epg.com/files/turkey4.xml.gz"),
 ]
 OUTPUT = Path("TURKEY_EPG.xml")
 UA = "Mozilla/5.0 Telly-Turkey-EPG-Merger/1.0"
