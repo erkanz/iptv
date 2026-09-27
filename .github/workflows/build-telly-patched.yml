@@ -1,0 +1,70 @@
+name: Build patched Telly APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "patches/telly-large-playlist-sqlite.patch"
+      - ".github/workflows/build-telly-patched.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout patch repository
+        uses: actions/checkout@v4
+        with:
+          path: patchrepo
+
+      - name: Checkout upstream Telly
+        uses: actions/checkout@v4
+        with:
+          repository: johnpc/telly
+          ref: 204957ad3d096c1fef030acbe43400d9e96e37f2
+          path: telly
+
+      - name: Apply Android 9 large-playlist SQLite patch
+        working-directory: telly
+        run: git apply --check ../patchrepo/patches/telly-large-playlist-sqlite.patch && git apply ../patchrepo/patches/telly-large-playlist-sqlite.patch
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run EPG unit tests
+        working-directory: telly
+        run: ./gradlew testDebugUnitTest --tests "com.johncorser.telly.features.epg.*"
+
+      - name: Build signed debug APK
+        working-directory: telly
+        run: ./gradlew assembleDebug
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p dist
+          cp telly/app/build/outputs/apk/debug/app-debug.apk dist/telly-0.2.0-large-playlist-fix-debug.apk
+          sha256sum dist/telly-0.2.0-large-playlist-fix-debug.apk | tee dist/SHA256SUMS.txt
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: telly-large-playlist-fix
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
