@@ -12,8 +12,14 @@ def get_text(url):
     with urllib.request.urlopen(req, timeout=30) as r:
         return r.read().decode("utf-8")
 
+def clean_name(s):
+    s = re.sub(r"\s*\([^)]*\)", "", s or "")
+    s = re.sub(r"\s*\[[^\]]*\]", "", s)
+    s = re.sub(r"\s+SD$", "", s, flags=re.I)
+    return s.strip()
+
 def norm(s):
-    s = (s or "").lower()
+    s = clean_name(s).lower()
     table = str.maketrans({"ı":"i","ğ":"g","ü":"u","ş":"s","ö":"o","ç":"c"})
     s = s.translate(table)
     s = unicodedata.normalize("NFKD", s)
