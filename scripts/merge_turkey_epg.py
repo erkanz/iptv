@@ -55,8 +55,12 @@ def main() -> int:
     stats = []
 
     for source_name, source_url in SOURCES:
-        raw = fetch(source_url)
-        root = ET.fromstring(raw)
+        try:
+            raw = fetch(source_url)
+            root = ET.fromstring(raw.lstrip())
+        except Exception as exc:
+            print(f"SKIP {source_name}: {type(exc).__name__}: {exc}")
+            continue
         source_channels = 0
         source_programs = 0
 
@@ -81,6 +85,9 @@ def main() -> int:
                 source_programs += 1
 
         stats.append((source_name, source_channels, source_programs))
+
+    if not channels or not programs:
+        raise RuntimeError("No usable Turkey EPG data from configured sources")
 
     for cid in sorted(channels):
         out.append(channels[cid])
