@@ -7,11 +7,11 @@ from pathlib import Path
 
 PLAYLIST_URL = "https://iptv-org.github.io/iptv/countries/tr.m3u"
 SOURCES = [
-    ("GlobeTV Turkey1", "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey1.xml.gz"),
-    ("GlobeTV Turkey2", "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey2.xml.gz"),
-    ("GlobeTV Turkey3", "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey3.xml.gz"),
-    ("GlobeTV Turkey4", "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey4.xml.gz"),
-    ("GlobeTV Turkey5", "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey5.xml.gz"),
+    ("GlobeTV Turkey1", "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey1.xml"),
+    ("GlobeTV Turkey2", "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey2.xml"),
+    ("GlobeTV Turkey3", "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey3.xml"),
+    ("GlobeTV Turkey4", "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey4.xml"),
+    ("GlobeTV Turkey5", "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey5.xml"),
 ]
 OUTPUT = Path("TURKEY_EPG.xml")
 UA = "Mozilla/5.0 Telly-Turkey-EPG-Merger/1.0"
