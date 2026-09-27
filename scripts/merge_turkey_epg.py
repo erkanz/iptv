@@ -23,15 +23,56 @@ def fetch(url: str) -> bytes:
         return r.read()
 
 
-def playlist_ids(content: str) -> set[str]:
+def norm(value: str) -> str:
+    value = value.casefold()
+    value = value.replace("ı", "i").replace("ş", "s").replace("ğ", "g")
+    value = value.replace("ü", "u").replace("ö", "o").replace("ç", "c")
+    value = re.sub(r"\\b(?:hd|sd|uhd|4k|turkiye|turkey)\\b", " ", value)
+    return re.sub(r"[^a-z0-9]+", "", value)
+
+
+def playlist_channels(content: str) -> tuple[set[str], dict[str, set[str]]]:
     ids = set()
+    names: dict[str, set[str]] = {}
     for line in content.splitlines():
         if not line.startswith("#EXTINF:"):
             continue
-        m = re.search(r'tvg-id="([^"]+)"', line)
-        if m and m.group(1).strip():
-            ids.add(m.group(1).strip())
-    return ids
+        mid = re.search(r'tvg-id="([^"]+)"', line)
+        if not mid or not mid.group(1).strip():
+            continue
+        tvg_id = mid.group(1).strip()
+        ids.add(tvg_id)
+        candidates = set()
+        mname = re.search(r'tvg-name="([^"]+)"', line)
+        if mname and mname.group(1).strip():
+            candidates.add(mname.group(1).strip())
+        if "," in line:
+            candidates.add(line.rsplit(",", 1)[1].strip())
+        # tvg-id itself often contains a useful base name (e.g. TRT1.tr).
+        candidates.add(tvg_id.split(".", 1)[0])
+        for candidate in candidates:
+            key = norm(candidate)
+            if key:
+                names.setdefault(key, set()).add(tvg_id)
+    return ids, names
+
+
+def channel_names(ch: ET.Element) -> list[str]:
+    values = []
+    for node in ch.findall("display-name"):
+        if node.text and node.text.strip():
+            values.append(node.text.strip())
+    return values
+
+
+def target_id_for(ch: ET.Element, wanted: set[str], by_name: dict[str, set[str]]) -> str | None:
+    cid = ch.get("id", "")
+    if cid in wanted:
+        return cid
+    matches = set()
+    for name in channel_names(ch):
+        matches.update(by_name.get(norm(name), set()))
+    return next(iter(matches)) if len(matches) == 1 else None
 
 
 def text_of(node: ET.Element, tag: str) -> str:
@@ -40,7 +81,7 @@ def text_of(node: ET.Element, tag: str) -> str:
 
 
 def main() -> int:
-    wanted = playlist_ids(fetch(PLAYLIST_URL).decode("utf-8-sig", errors="replace"))
+    wanted, wanted_by_name = playlist_channels(fetch(PLAYLIST_URL).decode("utf-8-sig", errors="replace"))
     if not wanted:
         raise RuntimeError("No tvg-id values found in Turkey playlist")
 
@@ -63,18 +104,26 @@ def main() -> int:
         source_channels = 0
         source_programs = 0
 
+        source_map: dict[str, str] = {}
         for ch in root.findall("channel"):
-            cid = ch.get("id", "")
-            if cid in wanted and cid not in channels:
-                channels[cid] = ch
+            source_id = ch.get("id", "")
+            target_id = target_id_for(ch, wanted, wanted_by_name)
+            if not target_id:
+                continue
+            source_map[source_id] = target_id
+            if target_id not in channels:
+                ch.set("id", target_id)
+                channels[target_id] = ch
                 source_channels += 1
 
         for p in root.findall("programme"):
-            cid = p.get("channel", "")
-            if cid not in wanted:
+            source_id = p.get("channel", "")
+            target_id = source_map.get(source_id)
+            if not target_id:
                 continue
+            p.set("channel", target_id)
             key = (
-                cid,
+                target_id,
                 p.get("start", ""),
                 p.get("stop", ""),
                 text_of(p, "title"),
