@@ -1,0 +1,135 @@
+diff --git a/app/src/main/java/com/johncorser/telly/features/epg/EpgRepository.kt b/app/src/main/java/com/johncorser/telly/features/epg/EpgRepository.kt
+--- a/app/src/main/java/com/johncorser/telly/features/epg/EpgRepository.kt
++++ b/app/src/main/java/com/johncorser/telly/features/epg/EpgRepository.kt
+@@ -2,6 +2,7 @@ package com.johncorser.telly.features.epg
+ 
+ import com.johncorser.telly.features.epg.db.ProgramDao
+ import com.johncorser.telly.features.epg.db.ProgramEntity
++import com.johncorser.telly.features.epg.db.observeProgramsChunked
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.ExperimentalCoroutinesApi
+ import kotlinx.coroutines.flow.Flow
+@@ -52,9 +53,9 @@ class EpgRepository(
+         toMs: Long,
+     ): Flow<List<ProgramEntity>> =
+         offsets.distinctUntilChanged().flatMapLatest { shift ->
+-            programDao
+-                .observeWindow(tvgIds, EpgOffsets.queryFrom(fromMs, shift), EpgOffsets.queryTo(toMs, shift))
+-                .map { EpgOffsets.windowed(it, shift, fromMs, toMs) }
++            observeProgramsChunked(tvgIds) { ids ->
++                programDao.observeWindow(ids, EpgOffsets.queryFrom(fromMs, shift), EpgOffsets.queryTo(toMs, shift))
++            }.map { EpgOffsets.windowed(it, shift, fromMs, toMs) }
+         }
+ 
+     /** Per-channel now/next at the injected instant [atMs], offsets applied. */
+@@ -64,9 +65,9 @@ class EpgRepository(
+         atMs: Long,
+     ): Flow<Map<String, NowNext>> =
+         offsets.distinctUntilChanged().flatMapLatest { shift ->
+-            programDao
+-                .observeAiringOrUpcoming(tvgIds, EpgOffsets.queryFrom(atMs, shift))
+-                .map { NowNextResolver.resolve(EpgOffsets.shifted(it, shift), atMs) }
++            observeProgramsChunked(tvgIds) { ids ->
++                programDao.observeAiringOrUpcoming(ids, EpgOffsets.queryFrom(atMs, shift))
++            }.map { NowNextResolver.resolve(EpgOffsets.shifted(it, shift), atMs) }
+         }
+ 
+     /** Trims history; honors Settings -> EPG -> "Past days to keep EPG". */
+diff --git a/app/src/main/java/com/johncorser/telly/features/epg/db/ProgramDao.kt b/app/src/main/java/com/johncorser/telly/features/epg/db/ProgramDao.kt
+--- a/app/src/main/java/com/johncorser/telly/features/epg/db/ProgramDao.kt
++++ b/app/src/main/java/com/johncorser/telly/features/epg/db/ProgramDao.kt
+@@ -48,7 +48,7 @@ interface ProgramDao {
+         tvgIds: List<String>,
+         programs: List<ProgramEntity>,
+     ) {
+-        deleteFor(tvgIds)
++        tvgIds.distinct().chunked(SQLITE_BIND_CHUNK).forEach { deleteFor(it) }
+         upsertAll(programs)
+     }
+ 
+diff --git a/app/src/main/java/com/johncorser/telly/features/epg/db/SqliteChunkedPrograms.kt b/app/src/main/java/com/johncorser/telly/features/epg/db/SqliteChunkedPrograms.kt
+new file mode 100644
+--- /dev/null
++++ b/app/src/main/java/com/johncorser/telly/features/epg/db/SqliteChunkedPrograms.kt
+@@ -0,0 +1,29 @@
++package com.johncorser.telly.features.epg.db
++
++import kotlinx.coroutines.flow.Flow
++import kotlinx.coroutines.flow.combine
++import kotlinx.coroutines.flow.flowOf
++
++/** Safe headroom below Android 9 SQLite's 999 bind-variable statement limit. */
++internal const val SQLITE_BIND_CHUNK = 900
++
++/**
++ * Room expands a List used by IN(...) into one bind variable per item.
++ * Split large channel-id lists so older Android SQLite builds never exceed
++ * their per-statement bind-variable limit, then restore DAO sort order.
++ */
++internal fun observeProgramsChunked(
++    tvgIds: List<String>,
++    query: (List<String>) -> Flow<List<ProgramEntity>>,
++): Flow<List<ProgramEntity>> {
++    val chunks = tvgIds.distinct().chunked(SQLITE_BIND_CHUNK)
++    if (chunks.isEmpty()) return flowOf(emptyList())
++    if (chunks.size == 1) return query(chunks.single())
++
++    val flows = chunks.map(query).toTypedArray()
++    return combine(*flows) { parts ->
++        parts
++            .flatMap { it }
++            .sortedWith(compareBy({ it.channelTvgId }, { it.startMs }))
++    }
++}
+diff --git a/app/src/test/java/com/johncorser/telly/features/epg/db/SqliteChunkedProgramsTest.kt b/app/src/test/java/com/johncorser/telly/features/epg/db/SqliteChunkedProgramsTest.kt
+new file mode 100644
+--- /dev/null
++++ b/app/src/test/java/com/johncorser/telly/features/epg/db/SqliteChunkedProgramsTest.kt
+@@ -0,0 +1,49 @@
++package com.johncorser.telly.features.epg.db
++
++import kotlinx.coroutines.flow.first
++import kotlinx.coroutines.flow.flowOf
++import kotlinx.coroutines.test.runTest
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertTrue
++import org.junit.Test
++
++class SqliteChunkedProgramsTest {
++    @Test
++    fun `3508 ids are split below the Android 9 SQLite bind limit`() =
++        runTest {
++            val ids = (1..3508).map { "channel-$it" }
++            val chunkSizes = mutableListOf<Int>()
++
++            val rows =
++                observeProgramsChunked(ids) { chunk ->
++                    chunkSizes += chunk.size
++                    flowOf(chunk.map(::program))
++                }.first()
++
++            assertEquals(listOf(900, 900, 900, 808), chunkSizes)
++            assertTrue(chunkSizes.all { it <= SQLITE_BIND_CHUNK })
++            assertEquals(3508, rows.size)
++        }
++
++    @Test
++    fun `duplicate ids are queried only once`() =
++        runTest {
++            val queried = mutableListOf<List<String>>()
++            observeProgramsChunked(listOf("a", "a", "b")) { chunk ->
++                queried += chunk
++                flowOf(emptyList())
++            }.first()
++
++            assertEquals(listOf(listOf("a", "b")), queried)
++        }
++
++    private fun program(tvgId: String) =
++        ProgramEntity(
++            channelTvgId = tvgId,
++            startMs = 0,
++            endMs = 1,
++            details = ProgramDetails(title = tvgId),
++        )
++}
