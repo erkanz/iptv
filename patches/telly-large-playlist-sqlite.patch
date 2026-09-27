@@ -85,7 +85,7 @@ diff --git a/app/src/test/java/com/johncorser/telly/features/epg/db/SqliteChunke
 new file mode 100644
 --- /dev/null
 +++ b/app/src/test/java/com/johncorser/telly/features/epg/db/SqliteChunkedProgramsTest.kt
-@@ -0,0 +1,49 @@
+@@ -0,0 +1,47 @@
 +package com.johncorser.telly.features.epg.db
 +
 +import kotlinx.coroutines.flow.first
