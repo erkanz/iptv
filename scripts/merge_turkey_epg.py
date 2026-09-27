@@ -1,165 +1,229 @@
 #!/usr/bin/env python3
+import concurrent.futures
+import json
 import re
-import sys
 import urllib.request
 import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 PLAYLIST_URL = "https://iptv-org.github.io/iptv/countries/tr.m3u"
-SOURCES = [
-    ("GlobeTV Turkey1", "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey1.xml"),
-    ("GlobeTV Turkey2", "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey2.xml"),
-    ("GlobeTV Turkey3", "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey3.xml"),
-    ("GlobeTV Turkey4", "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey4.xml"),
-    ("GlobeTV Turkey5", "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey5.xml"),
-]
+CHANNELS_URL = "https://raw.githubusercontent.com/iptv-org/epg/master/sites/tvplus.com.tr/tvplus.com.tr.channels.xml"
+AUTH_URL = "https://izmaottvsc14.tvplus.com.tr:33207/EPG/JSON/Authenticate"
+EPG_URL = "https://izmaottvsc14.tvplus.com.tr:33207/EPG/JSON/PlayBillList"
 OUTPUT = Path("TURKEY_EPG.xml")
-UA = "Mozilla/5.0 Telly-Turkey-EPG-Merger/1.0"
+UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36"
+ISTANBUL = ZoneInfo("Europe/Istanbul")
+DAYS = 2
+WORKERS = 8
 
 
 def fetch(url: str) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=120) as r:
+    with urllib.request.urlopen(req, timeout=60) as r:
         return r.read()
 
 
-def norm(value: str) -> str:
-    value = value.casefold()
-    value = value.replace("ı", "i").replace("ş", "s").replace("ğ", "g")
-    value = value.replace("ü", "u").replace("ö", "o").replace("ç", "c")
-    value = re.sub(r"\\b(?:hd|sd|uhd|4k|turkiye|turkey)\\b", " ", value)
-    return re.sub(r"[^a-z0-9]+", "", value)
+def post_json(url: str, payload: dict, cookie: str | None = None) -> tuple[bytes, list[str]]:
+    body = json.dumps(payload).encode("utf-8")
+    headers = {
+        "User-Agent": UA,
+        "Content-Type": "application/json;charset=UTF-8",
+        "Accept": "application/json, text/plain, */*",
+    }
+    if cookie:
+        headers["Cookie"] = cookie
+    req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return r.read(), r.headers.get_all("Set-Cookie") or []
 
 
-def playlist_channels(content: str) -> tuple[set[str], dict[str, set[str]]]:
+def playlist_ids(content: str) -> set[str]:
     ids = set()
-    names: dict[str, set[str]] = {}
     for line in content.splitlines():
         if not line.startswith("#EXTINF:"):
             continue
-        mid = re.search(r'tvg-id="([^"]+)"', line)
-        if not mid or not mid.group(1).strip():
+        m = re.search(r'tvg-id="([^"]+)"', line)
+        if m and m.group(1).strip():
+            ids.add(m.group(1).strip())
+    return ids
+
+
+def authenticate() -> str:
+    _, cookies = post_json(
+        AUTH_URL,
+        {
+            "terminaltype": "webtv",
+            "terminalvendor": UA,
+            "osversion": "Win32",
+            "userType": "3",
+            "utcEnable": "1",
+            "timezone": "Europe/Istanbul",
+        },
+    )
+    if not cookies:
+        raise RuntimeError("TV+ authentication returned no Set-Cookie header")
+    return "; ".join(c.split(";", 1)[0] for c in cookies)
+
+
+def parse_api_time(value: str) -> datetime:
+    # Example: 2026-04-22 02:30:00 UTC+03:00
+    return datetime.strptime(value, "%Y-%m-%d %H:%M:%S UTC%z")
+
+
+def xmltv_time(dt: datetime) -> str:
+    return dt.strftime("%Y%m%d%H%M%S %z")
+
+
+def add_text(parent: ET.Element, tag: str, value) -> None:
+    if value is None:
+        return
+    if isinstance(value, list):
+        value = ", ".join(str(x) for x in value if x)
+    value = str(value).strip()
+    if not value:
+        return
+    ET.SubElement(parent, tag).text = value
+
+
+def load_channels(wanted: set[str]) -> list[dict]:
+    root = ET.fromstring(fetch(CHANNELS_URL))
+    channels = []
+    for ch in root.findall("channel"):
+        xmltv_id = (ch.get("xmltv_id") or "").strip()
+        site_id = (ch.get("site_id") or "").strip()
+        if xmltv_id not in wanted or not site_id:
             continue
-        tvg_id = mid.group(1).strip()
-        ids.add(tvg_id)
-        candidates = set()
-        mname = re.search(r'tvg-name="([^"]+)"', line)
-        if mname and mname.group(1).strip():
-            candidates.add(mname.group(1).strip())
-        if "," in line:
-            candidates.add(line.rsplit(",", 1)[1].strip())
-        # tvg-id itself often contains a useful base name (e.g. TRT1.tr).
-        candidates.add(tvg_id.split("@", 1)[0])
-        candidates.add(tvg_id.split(".", 1)[0])
-        for candidate in candidates:
-            key = norm(candidate)
-            if key:
-                names.setdefault(key, set()).add(tvg_id)
-    return ids, names
+        channels.append(
+            {
+                "xmltv_id": xmltv_id,
+                "site_id": site_id,
+                "name": (ch.text or xmltv_id).strip(),
+                "logo": (ch.get("logo") or "").strip(),
+            }
+        )
+    return channels
 
 
-def channel_names(ch: ET.Element) -> list[str]:
-    values = []
-    for node in ch.findall("display-name"):
-        if node.text and node.text.strip():
-            values.append(node.text.strip())
-    return values
-
-
-def target_id_for(ch: ET.Element, wanted: set[str], by_name: dict[str, set[str]]) -> str | None:
-    cid = ch.get("id", "")
-    if cid in wanted:
-        return cid
-    matches = set(by_name.get(norm(cid), set()))
-    for name in channel_names(ch):
-        matches.update(by_name.get(norm(name), set()))
-    return next(iter(matches)) if len(matches) == 1 else None
-
-
-def text_of(node: ET.Element, tag: str) -> str:
-    child = node.find(tag)
-    return (child.text or "").strip() if child is not None else ""
+def grab_channel(channel: dict, cookie: str, start_day: datetime) -> tuple[dict, list[dict], list[str]]:
+    programs = []
+    errors = []
+    for offset in range(DAYS):
+        begin = (start_day + timedelta(days=offset)).replace(hour=0, minute=0, second=0, microsecond=0)
+        end = begin + timedelta(days=1)
+        payload = {
+            "type": "2",
+            "channelid": channel["site_id"],
+            "begintime": begin.strftime("%Y%m%d%H%M%S"),
+            "endtime": end.strftime("%Y%m%d%H%M%S"),
+            "isFillProgram": 1,
+        }
+        try:
+            raw, _ = post_json(EPG_URL, payload, cookie)
+            data = json.loads(raw.decode("utf-8", errors="replace"))
+            items = data.get("playbilllist") if isinstance(data, dict) else None
+            if isinstance(items, list):
+                programs.extend(items)
+        except Exception as exc:
+            errors.append(f"{channel['xmltv_id']} day+{offset}: {type(exc).__name__}: {exc}")
+    return channel, programs, errors
 
 
 def main() -> int:
-    wanted, wanted_by_name = playlist_channels(fetch(PLAYLIST_URL).decode("utf-8-sig", errors="replace"))
+    wanted = playlist_ids(fetch(PLAYLIST_URL).decode("utf-8-sig", errors="replace"))
     if not wanted:
         raise RuntimeError("No tvg-id values found in Turkey playlist")
 
-    out = ET.Element("tv", {
-        "generator-info-name": "erkanz/iptv Turkey EPG merger",
-        "generator-info-url": "https://github.com/erkanz/iptv",
-    })
+    channels = load_channels(wanted)
+    if not channels:
+        raise RuntimeError("No TV+ channels match the Turkey playlist")
 
-    channels: dict[str, ET.Element] = {}
-    programs: dict[tuple[str, str, str, str], ET.Element] = {}
-    stats = []
+    cookie = authenticate()
+    today = datetime.now(ISTANBUL)
 
-    for source_name, source_url in SOURCES:
-        try:
-            raw = fetch(source_url)
-            root = ET.fromstring(raw.lstrip())
-        except Exception as exc:
-            print(f"SKIP {source_name}: {type(exc).__name__}: {exc}")
-            continue
-        source_channels = 0
-        source_programs = 0
+    out = ET.Element(
+        "tv",
+        {
+            "generator-info-name": "erkanz/iptv live TV+ Turkey EPG",
+            "generator-info-url": "https://github.com/erkanz/iptv",
+        },
+    )
 
-        source_map: dict[str, str] = {}
-        for ch in root.findall("channel"):
-            source_id = ch.get("id", "")
-            target_id = target_id_for(ch, wanted, wanted_by_name)
-            if not target_id:
-                continue
-            source_map[source_id] = target_id
-            if target_id not in channels:
-                ch.set("id", target_id)
-                channels[target_id] = ch
-                source_channels += 1
+    channel_nodes: dict[str, ET.Element] = {}
+    for ch in channels:
+        node = ET.SubElement(out, "channel", {"id": ch["xmltv_id"]})
+        ET.SubElement(node, "display-name").text = ch["name"]
+        if ch["logo"]:
+            ET.SubElement(node, "icon", {"src": ch["logo"]})
+        channel_nodes[ch["xmltv_id"]] = node
 
-        for p in root.findall("programme"):
-            source_id = p.get("channel", "")
-            target_id = source_map.get(source_id)
-            if not target_id:
-                continue
-            p.set("channel", target_id)
-            key = (
-                target_id,
-                p.get("start", ""),
-                p.get("stop", ""),
-                text_of(p, "title"),
-            )
-            if key not in programs:
-                programs[key] = p
-                source_programs += 1
+    all_programs = []
+    all_errors = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=WORKERS) as pool:
+        futures = [pool.submit(grab_channel, ch, cookie, today) for ch in channels]
+        for future in concurrent.futures.as_completed(futures):
+            ch, items, errors = future.result()
+            all_errors.extend(errors)
+            for item in items:
+                try:
+                    start = parse_api_time(item.get("starttime", ""))
+                    stop = parse_api_time(item.get("endtime", ""))
+                    if stop <= start:
+                        continue
+                    all_programs.append((ch["xmltv_id"], start, stop, item))
+                except Exception as exc:
+                    all_errors.append(f"{ch['xmltv_id']} parse: {type(exc).__name__}: {exc}")
 
-        stats.append((source_name, source_channels, source_programs))
+    # De-duplicate programs returned across day boundaries.
+    unique = {}
+    for cid, start, stop, item in all_programs:
+        key = (cid, start.isoformat(), stop.isoformat(), str(item.get("name", "")))
+        unique[key] = (cid, start, stop, item)
 
-    if not channels or not programs:
-        raise RuntimeError("No usable Turkey EPG data from configured sources")
+    programs = sorted(unique.values(), key=lambda x: (x[0], x[1], x[2]))
+    for cid, start, stop, item in programs:
+        p = ET.SubElement(
+            out,
+            "programme",
+            {
+                "start": xmltv_time(start),
+                "stop": xmltv_time(stop),
+                "channel": cid,
+            },
+        )
+        add_text(p, "title", item.get("name"))
+        add_text(p, "desc", item.get("introduce"))
+        add_text(p, "category", item.get("genres"))
+        picture = item.get("picture") or {}
+        if isinstance(picture, dict):
+            icon = picture.get("icon")
+            if isinstance(icon, str) and icon.strip():
+                ET.SubElement(p, "icon", {"src": icon.split(",", 1)[0].strip()})
 
-    for cid in sorted(channels):
-        out.append(channels[cid])
-
-    def prog_key(p: ET.Element):
-        return (p.get("channel", ""), p.get("start", ""), p.get("stop", ""), text_of(p, "title"))
-
-    for p in sorted(programs.values(), key=prog_key):
-        out.append(p)
+    if not programs:
+        raise RuntimeError("TV+ returned zero current programmes")
 
     ET.indent(out, space="  ")
-    tree = ET.ElementTree(out)
-    tree.write(OUTPUT, encoding="utf-8", xml_declaration=True)
+    ET.ElementTree(out).write(OUTPUT, encoding="utf-8", xml_declaration=True)
 
-    covered = len(channels)
+    starts = [p[1] for p in programs]
+    stops = [p[2] for p in programs]
+    covered = len({p[0] for p in programs})
+
     print(f"Turkey playlist tvg-id count : {len(wanted)}")
-    print(f"EPG channel coverage         : {covered}")
-    print(f"Merged programme count       : {len(programs)}")
-    for name, c, p in stats:
-        print(f"{name:10s}: +{c:3d} channels, +{p:6d} programmes")
+    print(f"TV+ matched channels         : {len(channels)}")
+    print(f"Channels with programme data : {covered}")
+    print(f"Programme count              : {len(programs)}")
+    print(f"EPG start range              : {min(starts).isoformat()} -> {max(starts).isoformat()}")
+    print(f"EPG stop max                 : {max(stops).isoformat()}")
     print(f"Output                       : {OUTPUT} ({OUTPUT.stat().st_size} bytes)")
+    if all_errors:
+        print(f"Non-fatal grab/parse errors  : {len(all_errors)}")
+        for err in all_errors[:20]:
+            print(f"WARN {err}")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())
