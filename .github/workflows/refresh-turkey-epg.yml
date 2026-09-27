@@ -1,0 +1,48 @@
+name: Refresh Turkey EPG
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/merge_turkey_epg.py"
+      - ".github/workflows/refresh-turkey-epg.yml"
+  schedule:
+    - cron: "17 4 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Merge Turkey EPG
+        run: python scripts/merge_turkey_epg.py
+
+      - name: Show result
+        run: |
+          ls -lh TURKEY_EPG.xml
+          grep -c "<channel " TURKEY_EPG.xml || true
+          grep -c "<programme " TURKEY_EPG.xml || true
+
+      - name: Commit refreshed EPG
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add TURKEY_EPG.xml
+          if git diff --cached --quiet; then
+            echo "No EPG changes."
+            exit 0
+          fi
+          git commit -m "Refresh Turkey merged EPG"
+          git push
