@@ -49,6 +49,7 @@ def playlist_channels(content: str) -> tuple[set[str], dict[str, set[str]]]:
         if "," in line:
             candidates.add(line.rsplit(",", 1)[1].strip())
         # tvg-id itself often contains a useful base name (e.g. TRT1.tr).
+        candidates.add(tvg_id.split("@", 1)[0])
         candidates.add(tvg_id.split(".", 1)[0])
         for candidate in candidates:
             key = norm(candidate)
@@ -69,7 +70,7 @@ def target_id_for(ch: ET.Element, wanted: set[str], by_name: dict[str, set[str]]
     cid = ch.get("id", "")
     if cid in wanted:
         return cid
-    matches = set()
+    matches = set(by_name.get(norm(cid), set()))
     for name in channel_names(ch):
         matches.update(by_name.get(norm(name), set()))
     return next(iter(matches)) if len(matches) == 1 else None
