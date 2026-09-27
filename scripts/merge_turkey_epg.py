@@ -7,9 +7,7 @@ from pathlib import Path
 
 PLAYLIST_URL = "https://iptv-org.github.io/iptv/countries/tr.m3u"
 SOURCES = [
-    ("TV+", "https://iptv-org.github.io/epg/guides/tr/tvplus.com.tr.xml.gz"),
-    ("Digiturk", "https://iptv-org.github.io/epg/guides/tr/digiturk.com.tr.xml.gz"),
-    ("D-Smart", "https://iptv-org.github.io/epg/guides/tr/dsmart.com.tr.xml.gz"),
+    ("iptv-org Turkey", "https://iptv-org.github.io/epg/guides/tr.xml.gz"),
 ]
 OUTPUT = Path("TURKEY_EPG.xml")
 UA = "Mozilla/5.0 Telly-Turkey-EPG-Merger/1.0"
