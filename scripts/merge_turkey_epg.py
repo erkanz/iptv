@@ -15,8 +15,8 @@ EPG_URL = "https://izmaottvsc14.tvplus.com.tr:33207/EPG/JSON/PlayBillList"
 OUTPUT = Path("TURKEY_EPG.xml")
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36"
 ISTANBUL = ZoneInfo("Europe/Istanbul")
-DAYS = 2
-WORKERS = 8
+DAYS = 1
+WORKERS = 16
 
 
 def fetch(url: str) -> bytes:
