@@ -21,8 +21,6 @@ https://starmenajo.com/hls/almahriah/index.m3u8
 https://edge1.taksimbilisim.com/altastv/bant1/playlist.m3u8
 #EXTINF:-1 tvg-id="AnadoluNetTV.tr@SD" tvg-logo="https://www.anadolunettv.com/d/r/logo.png" group-title="General",Anadolu Net TV
 https://live.artidijitalmedya.com/artidijital_anadolunet/anadolunet/playlist.m3u8
-#EXTINF:-1 tvg-id="ArasTV.tr@SD" tvg-logo="https://i.imgur.com/JsDCyWG.png" group-title="General",Aras TV
-https://2.rtmp.org/tv217/yayin.stream/playlist.m3u8
 #EXTINF:-1 tvg-id="ATV.tr@SD" tvg-logo="https://i.imgur.com/HyVUwFC.png" group-title="General",ATV
 https://rnttwmjcin.turknet.ercdn.net/lcpmvefbyo/atv/atv.m3u8
 #EXTINF:-1 tvg-id="ATVAlanya.tr@SD" tvg-logo="https://i.imgur.com/bUwarR0.png" group-title="General",ATV Alanya
@@ -35,8 +33,6 @@ https://bikanal-live.ercdn.net/bikanal/bikanal.m3u8
 https://edge2.taksimbilisim.com/birtv/bant1/playlist.m3u8
 #EXTINF:-1 tvg-id="BloombergHT.tr@SD" tvg-logo="https://i.imgur.com/bmkXfIE.png" group-title="Business",Bloomberg HT
 https://tv.ensonhaber.com/bloomberght/bloomberght.m3u8
-#EXTINF:-1 group-title="Türkiye",Bodrum Kent TV
-https://edge2.taksimbilisim.com/bodrumkenttv/bant1/playlist.m3u8
 #EXTINF:-1 tvg-id="CayTV.tr@SD" tvg-logo="https://i.imgur.com/ndupxwu.png" group-title="General",Cay TV
 https://edge.taksimbilisim.com/caytv/bant1/playlist.m3u8
 #EXTINF:-1 group-title="Türkiye",Cem TV
@@ -129,8 +125,6 @@ https://live.artidijitalmedya.com/artidijital_kanalplus/kanalplus/mpeg/playlist.
 https://edge2.taksimbilisim.com/kanalurfa/bant1/playlist.m3u8
 #EXTINF:-1 tvg-id="KanalV.tr@SD" tvg-logo="https://i.imgur.com/7RNjTno.png" group-title="General",Kanal V
 https://live.artidijitalmedya.com/artidijital_kanalv/kanalv/playlist.m3u8
-#EXTINF:-1 group-title="Türkiye",Karadeniz TV
-https://panel.5gtvhosting.com/hls/karadeniztv/karadeniztv.m3u8
 #EXTINF:-1 tvg-id="KentTurk.tr@SD" tvg-logo="https://i.imgur.com/FQKPjsm.png" group-title="General",Kent Turk
 https://live.artidijitalmedya.com/artidijital_kentturktv/kentturktv/playlist.m3u8
 #EXTINF:-1 tvg-id="KocaeliTV.tr@SD" tvg-logo="https://i.imgur.com/LeTP4zq.png" group-title="General",Kocaeli TV
