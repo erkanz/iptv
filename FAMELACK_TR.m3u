@@ -53,8 +53,6 @@ https://live.artidijitalmedya.com/artidijital_denizpostasi/denizpostasi/playlist
 https://eustr73.mediatriple.net/videoonlylive/mtikoimxnztxlive/broadcast_5e3bf95a47e07.smil/playlist.m3u8
 #EXTINF:-1 tvg-id="DiyarTV.tr@SD" tvg-logo="https://i.imgur.com/qWkHjRA.png" group-title="Religious",Diyar TV
 https://live.artidijitalmedya.com/artidijital_diyartv/diyartv/playlist.m3u8
-#EXTINF:-1 tvg-id="DostTV.tr@SD" tvg-logo="https://dosttv.com/wp-content/uploads/2022/02/dost_logo.png" group-title="Religious",Dost TV
-https://dost.stream.emsal.im/tv/live.m3u8
 #EXTINF:-1 tvg-id="EdessaTV.tr@SD" tvg-logo="https://i.imgur.com/rhU6j9I.png" group-title="Entertainment",Edessa TV
 https://canli.edessatv.com/hls/stream.m3u8
 #EXTINF:-1 group-title="Türkiye",Ekol Sports
@@ -125,8 +123,6 @@ https://cdn-kanalavrupa.yayin.com.tr/kanalavrupa/tracks-v2a1/playlist.m3u8
 https://tv.kanalb.tr/hls/kanalb/index.m3u8
 #EXTINF:-1 tvg-id="KanalFirat.tr@SD" tvg-logo="https://i.imgur.com/3o8Rokp.png" group-title="General",Kanal Firat
 https://live.artidijitalmedya.com/artidijital_kanalfirat/kanalfirat/playlist.m3u8
-#EXTINF:-1 tvg-id="KanalHayat.tr@SD" tvg-logo="https://i.imgur.com/eikZj19.png" group-title="General",Kanal Hayat
-https://tbn02a.ltnschedule.com/hls/nx21i.m3u8
 #EXTINF:-1 group-title="Türkiye",Kanal Plus
 https://live.artidijitalmedya.com/artidijital_kanalplus/kanalplus/mpeg/playlist.m3u8
 #EXTINF:-1 group-title="Türkiye",Kanal Urfa
