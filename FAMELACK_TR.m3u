@@ -211,6 +211,8 @@ https://live.artidijitalmedya.com/artidijital_tivi6/tivi6/playlist.m3u8
 https://tjktv-live.tjk.org/tjktv.m3u8
 #EXTINF:-1 tvg-id="TonTV.tr@SD" tvg-logo="https://i.imgur.com/f0Soeob.png" group-title="Undefined",Ton TV
 https://live.artidijitalmedya.com/artidijital_tontv/tontv/playlist.m3u8
+#EXTINF:-1 tvg-id="TRT1.tr@SD" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/TRT_1_logo_%282021-%29.svg/960px-TRT_1_logo_%282021-%29.svg.png" group-title="Undefined",TRT 1
+https://tv-trt1.medya.trt.com.tr/master.m3u8
 #EXTINF:-1 group-title="Türkiye",TRT Arabi
 https://tv-trtarabi.medya.trt.com.tr/master.m3u8
 #EXTINF:-1 tvg-id="TRTAvaz.tr@SD" tvg-logo="https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/TRT_Avaz_logo.svg/960px-TRT_Avaz_logo.svg.png" group-title="Undefined",TRT Avaz
