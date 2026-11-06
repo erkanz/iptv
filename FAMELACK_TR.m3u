@@ -109,8 +109,6 @@ https://live.euromediacenter.com/kanal19/tracks-v1a1/playlist.m3u8
 https://cdn-kanal23.yayin.com.tr/kanal23/index.m3u8
 #EXTINF:-1 tvg-id="Kanal26.tr@SD" tvg-logo="https://i.imgur.com/Mr7XPii.png" group-title="General",Kanal 26
 https://live.artidijitalmedya.com/artidijital_kanal26/kanal26/playlist.m3u8
-#EXTINF:-1 tvg-id="Kanal33.tr@SD" tvg-logo="https://i.imgur.com/5WYaoFZ.png" group-title="General",Kanal 33
-https://edge2.taksimbilisim.com/kanal33/bant1/playlist.m3u8
 #EXTINF:-1 tvg-id="Kanal34.tr@SD" tvg-logo="https://i.imgur.com/SIaI6Sj.png" group-title="General",Kanal 34
 https://live.euromediacenter.com/kanal34/tracks-v1a1/playlist.m3u8
 #EXTINF:-1 tvg-id="Kanal58.tr@SD" tvg-logo="https://i.imgur.com/Rgc66sv.png" group-title="General",Kanal 58
@@ -157,6 +155,8 @@ https://live.artidijitalmedya.com/artidijital_mercantv/mercantv/playlist.m3u8
 https://rnttwmjcin.turknet.ercdn.net/lcpmvefbyo/minikago_cocuk/minikago_cocuk.m3u8
 #EXTINF:-1 tvg-id="MinikaGo.tr@SD" tvg-logo="https://i.imgur.com/qIoipDq.png" group-title="Kids",Minika Go
 https://rnttwmjcin.turknet.ercdn.net/lcpmvefbyo/minikago/minikago.m3u8
+#EXTINF:-1 tvg-id="NOW.tr@SD" tvg-logo="https://i.imgur.com/5EYjWK7.png" group-title="Entertainment",NOW
+https://uycyyuuzyh.turknet.ercdn.net/nphindgytw/nowtv/nowtv_720p.m3u8
 #EXTINF:-1 tvg-id="Number1Ask.tr@SD" tvg-logo="https://i.imgur.com/slwbux7.png" group-title="Music",Number 1 Ask
 https://b01c02nl.mediatriple.net/videoonlylive/mtkgeuihrlfwlive/u_stream_5c9e18f9cea15_1/playlist.m3u8
 #EXTINF:-1 tvg-id="Number1Damar.tr@SD" tvg-logo="https://i.imgur.com/rYtbAGZ.png" group-title="Music",Number 1 Damar
